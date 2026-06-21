@@ -22,11 +22,18 @@ export function NavBar({ items, className }: NavBarProps) {
   const pathname = usePathname()
   const [isMobile, setIsMobile] = useState(false)
 
-  // Derive the active tab from the current pathname so a hard-refresh
-  // always highlights the correct item instead of defaulting to the first.
-  const activeTab =
-    items.find((item) => pathname === item.url || pathname.startsWith(item.url + "/"))?.name ??
+  // Resolve which item matches the current pathname
+  const getActiveFromPath = (path: string) =>
+    items.find((item) => path === item.url || path.startsWith(item.url + "/"))?.name ??
     items[0].name
+
+  // Local state for instant animation on click
+  const [activeTab, setActiveTab] = useState(() => getActiveFromPath(pathname))
+
+  // Keep in sync with browser navigation (back/forward/refresh)
+  useEffect(() => {
+    setActiveTab(getActiveFromPath(pathname))
+  }, [pathname])
 
   useEffect(() => {
     const handleResize = () => {
@@ -54,6 +61,7 @@ export function NavBar({ items, className }: NavBarProps) {
             <Link
               key={item.name}
               href={item.url}
+              onClick={() => setActiveTab(item.name)}
               className={cn(
                 "relative cursor-pointer text-sm font-semibold px-6 py-2 rounded-full transition-colors",
                 "text-foreground/80 hover:text-primary",
