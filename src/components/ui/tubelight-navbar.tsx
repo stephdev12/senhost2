@@ -22,9 +22,13 @@ export function NavBar({ items, className }: NavBarProps) {
   const pathname = usePathname()
   const [isMobile, setIsMobile] = useState(false)
 
-  // Resolve which item matches the current pathname
+  // Resolve which item matches the current pathname.
+  // Sort by URL length descending so more specific routes (e.g. /dashboard/templates)
+  // are tested before shorter parent routes (e.g. /dashboard), preventing false matches.
   const getActiveFromPath = (path: string) =>
-    items.find((item) => path === item.url || path.startsWith(item.url + "/"))?.name ??
+    [...items]
+      .sort((a, b) => b.url.length - a.url.length)
+      .find((item) => path === item.url || path.startsWith(item.url + "/"))?.name ??
     items[0].name
 
   // Local state for instant animation on click
