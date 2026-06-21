@@ -3,6 +3,19 @@ import { NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
 
 /**
+ * Returns the public-facing base URL of the app.
+ * Prefers the NEXT_PUBLIC_APP_URL env var (set in production .env)
+ * to avoid leaking the internal 127.0.0.1 address when behind Nginx.
+ */
+function getBaseUrl(req: NextRequest): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXTAUTH_URL ||
+    req.nextUrl.origin
+  );
+}
+
+/**
  * POST /api/payments/fapshi — Initiate a Fapshi Mobile Money checkout
  * Body: { tierName: string, coins: number, price: number }
  */
@@ -34,7 +47,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         amount: price,
         email: "client@senhost.com",
-        redirectUrl: `${request.nextUrl.origin}/dashboard/coins?payment_status=success&transId=${transId}&coins=${coins}`,
+        redirectUrl: `${getBaseUrl(request)}/dashboard/coins?payment_status=success&transId=${transId}&coins=${coins}`,
         userId: "user_senhost",
         externalId: transId,
         message: `Purchase of ${coins} Coins on SenHost`,

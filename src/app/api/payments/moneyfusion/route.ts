@@ -6,6 +6,19 @@ export const dynamic = "force-dynamic";
  * POST /api/payments/moneyfusion — Initiate a MoneyFusion Mobile Money checkout
  * Body: { tierName: string, coins: number, price: number, phoneNumber: string, clientName: string }
  */
+/**
+ * Returns the public-facing base URL of the app.
+ * Prefers the NEXT_PUBLIC_APP_URL env var (set in production .env)
+ * to avoid leaking the internal 127.0.0.1 address when behind Nginx.
+ */
+function getBaseUrl(req: NextRequest): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXTAUTH_URL ||
+    req.nextUrl.origin
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -13,8 +26,9 @@ export async function POST(request: NextRequest) {
 
     const apiUrl = process.env.MONEYFUSION_API_URL;
     const token = `mf_${Math.random().toString(36).substring(2, 15)}`;
+    const baseUrl = getBaseUrl(request);
 
-    const returnUrl = `${request.nextUrl.origin}/dashboard/coins?payment_status=success&transId=${token}&coins=${coins}&gateway=moneyfusion`;
+    const returnUrl = `${baseUrl}/dashboard/coins?payment_status=success&transId=${token}&coins=${coins}&gateway=moneyfusion`;
 
     // Fallback for sandbox testing if MoneyFusion API URL isn't configured
     if (!apiUrl) {
@@ -42,7 +56,7 @@ export async function POST(request: NextRequest) {
         numeroSend: phoneNumber || "00000000",
         nomclient: clientName || "SenHost Customer",
         return_url: returnUrl,
-        webhook_url: `${request.nextUrl.origin}/api/payments/moneyfusion/webhook`,
+        webhook_url: `${baseUrl}/api/payments/moneyfusion/webhook`,
       }),
     });
 
