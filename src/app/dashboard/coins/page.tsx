@@ -129,7 +129,9 @@ function CoinsContent() {
           const response = await fetch(endpoint);
           if (response.ok) {
             const data = await response.json();
-            const isSuccess = data.status === "SUCCESSFUL" || data.status === "paid" || data.sandbox;
+            // NOTE: sandbox flag is intentionally excluded — coins must only be
+            // awarded after a real confirmed payment (status from the gateway).
+            const isSuccess = data.status === "SUCCESSFUL" || data.status === "paid";
 
             if (isSuccess) {
               const currentBalance = localStorage.getItem("coins_balance")
@@ -256,11 +258,26 @@ function CoinsContent() {
       if (response.ok) {
         const data = await response.json();
         if (data.link) {
+          // Safety guard: never redirect to a local/internal URL.
+          // This prevents sandbox mode from silently crediting coins by
+          // redirecting straight to the success callback URL.
+          const isExternalCheckout =
+            data.link.startsWith("https://") &&
+            !data.link.includes(window.location.hostname) &&
+            !data.link.includes("localhost") &&
+            !data.link.includes("127.0.0.1");
+
+          if (!isExternalCheckout) {
+            alert("Le gateway de paiement n'est pas encore configuré sur ce serveur. Contactez l'administrateur.");
+            setPurchaseLoading(null);
+            return;
+          }
+
           newTrans.transId = data.transId || data.token;
           pendingTransactions.push(newTrans);
           localStorage.setItem("pending_transactions", JSON.stringify(pendingTransactions));
 
-          window.location.href = data.link; // Redirect to checkout
+          window.location.href = data.link; // Redirect to real external checkout
         }
       } else {
         alert("Failed to initiate payment. Please try again.");
