@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -18,8 +19,14 @@ interface NavBarProps {
 }
 
 export function NavBar({ items, className }: NavBarProps) {
-  const [activeTab, setActiveTab] = useState(items[0].name)
+  const pathname = usePathname()
   const [isMobile, setIsMobile] = useState(false)
+
+  // Derive the active tab from the current pathname so a hard-refresh
+  // always highlights the correct item instead of defaulting to the first.
+  const activeTab =
+    items.find((item) => pathname === item.url || pathname.startsWith(item.url + "/"))?.name ??
+    items[0].name
 
   useEffect(() => {
     const handleResize = () => {
@@ -47,7 +54,6 @@ export function NavBar({ items, className }: NavBarProps) {
             <Link
               key={item.name}
               href={item.url}
-              onClick={() => setActiveTab(item.name)}
               className={cn(
                 "relative cursor-pointer text-sm font-semibold px-6 py-2 rounded-full transition-colors",
                 "text-foreground/80 hover:text-primary",

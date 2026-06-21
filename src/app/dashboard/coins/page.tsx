@@ -210,6 +210,8 @@ function CoinsContent() {
     setClientName("");
     setPhoneNumber("");
     setIsModalOpen(true);
+    // Scroll to top so the modal is always visible on mobile
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handlePurchase = async (pack: CoinPack | null, chosenCountry: "cameroun" | "autre" | "") => {
@@ -489,7 +491,7 @@ function CoinsContent() {
 
       {/* Country & Payment Method Selection Modal */}
       {isModalOpen && selectedPack && (
-        <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border/50 px-6 py-4 bg-muted/20">
