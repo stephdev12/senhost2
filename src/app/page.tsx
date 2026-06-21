@@ -6,6 +6,8 @@ import { LiquidButton } from "@/components/ui/liquid-glass-button";
 import { Bot, Zap, Shield } from "lucide-react";
 import Link from "next/link";
 
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+
 export default function LandingPage() {
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-background">
@@ -25,15 +27,15 @@ export default function LandingPage() {
           [12, 15],
           [15, 10],
           [10, 15],
-          [15, 10],
-          [10, 15],
-          [15, 10],
           [20, 8],
           [25, 12],
           [18, 20],
           [3, 18],
           [22, 5],
           [28, 14],
+          [7, 12],
+          [14, 7],
+          [24, 18],
         ]}
         className={cn(
           "[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]",
@@ -54,21 +56,12 @@ export default function LandingPage() {
       {/* Minimal Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 sm:px-10">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-            <Bot className="h-4 w-4 text-primary" />
-          </div>
           <span className="text-lg font-semibold tracking-tight text-foreground">
             SenHost
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            All systems operational
-          </div>
+          <ThemeToggle />
         </div>
       </nav>
 

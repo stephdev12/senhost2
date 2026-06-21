@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,21 +11,103 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState("");
   const router = useRouter();
+
+  // Initialize/Seed users database in localStorage
+  useEffect(() => {
+    const usersStr = localStorage.getItem("users");
+    if (!usersStr) {
+      const defaultUsers = [
+        {
+          id: "user_sen",
+          name: "Sen",
+          email: "sen@senhost.com",
+          password: "password",
+          coins: 150,
+          isBlocked: false,
+          createdAt: new Date().toISOString().split("T")[0],
+        },
+      ];
+      localStorage.setItem("users", JSON.stringify(defaultUsers));
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // For now, navigate to dashboard directly
-    router.push("/dashboard");
+    setError("");
+
+    if (!email || !password || (!isLogin && !name)) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
+    const usersStr = localStorage.getItem("users");
+    const users = usersStr ? JSON.parse(usersStr) : [];
+
+    if (isLogin) {
+      // Handle login
+      const user = users.find(
+        (u: any) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+      );
+
+      if (!user) {
+        setError("Invalid email or password.");
+        return;
+      }
+
+      if (user.isBlocked) {
+        setError("Your account has been blocked by the administrator.");
+        return;
+      }
+
+      // Successful login
+      localStorage.setItem("current_user", JSON.stringify(user));
+      localStorage.setItem("coins_balance", user.coins.toString());
+      router.push("/dashboard");
+    } else {
+      // Handle sign up
+      const emailExists = users.some(
+        (u: any) => u.email.toLowerCase() === email.toLowerCase()
+      );
+
+      if (emailExists) {
+        setError("An account with this email already exists.");
+        return;
+      }
+
+      const newUser = {
+        id: `user_${Math.random().toString(36).substring(2, 11)}`,
+        name,
+        email,
+        password,
+        coins: 100, // 100 starter coins
+        isBlocked: false,
+        createdAt: new Date().toISOString().split("T")[0],
+      };
+
+      users.push(newUser);
+      localStorage.setItem("users", JSON.stringify(users));
+      localStorage.setItem("current_user", JSON.stringify(newUser));
+      localStorage.setItem("coins_balance", newUser.coins.toString());
+      router.push("/dashboard");
+    }
   };
 
   return (
     <div className="relative flex items-center justify-center min-h-screen overflow-hidden bg-background">
+      {/* Top right theme toggle */}
+      <div className="absolute top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+
       {/* Grid Pattern Background */}
       <GridPattern
         width={30}
@@ -55,9 +137,6 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md px-4 animate-fade-in-up">
         {/* Logo */}
         <Link href="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
-            <Bot className="h-5 w-5 text-primary" />
-          </div>
           <span className="text-xl font-bold tracking-tight text-foreground">
             SenHost
           </span>
@@ -75,6 +154,11 @@ export default function LoginPage() {
             </p>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-xl p-3 mb-4 text-center">
+                {error}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-5">
               {!isLogin && (
                 <div className="space-y-2">

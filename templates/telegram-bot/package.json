@@ -1,0 +1,6 @@
+{
+  "name": "telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot template for notifications and automation",
+  "main": "index.js"
+}

@@ -59,13 +59,17 @@ export function InteractiveProductCard({
       )}
       {...props}
     >
-      {/* Background Image */}
-      <img
-        src={imageUrl}
-        alt={title}
-        className="absolute inset-0 h-full w-full object-cover rounded-3xl transition-transform duration-300"
+      {/* Background Image (Blurred backdrop style) */}
+      <div
+        className="absolute inset-0 overflow-hidden rounded-3xl"
         style={{ transform: "translateZ(-20px) scale(1.1)" }}
-      />
+      >
+        <img
+          src={imageUrl}
+          alt={title}
+          className="h-full w-full object-cover transition-transform duration-300 blur-[8px] scale-110"
+        />
+      </div>
       {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent rounded-3xl" />
 

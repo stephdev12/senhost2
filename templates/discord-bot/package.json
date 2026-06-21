@@ -1,0 +1,6 @@
+{
+  "name": "discord-bot",
+  "version": "1.0.0",
+  "description": "A full-featured Discord bot template with slash commands",
+  "main": "index.js"
+}
