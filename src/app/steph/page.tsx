@@ -46,6 +46,8 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [transactions, setTransactions] = useState<CompletedTransaction[]>([]);
   const [activeBotsCount, setActiveBotsCount] = useState<number>(0);
+  const [allInstances, setAllInstances] = useState<any[]>([]);
+  const [viewingBotsUser, setViewingBotsUser] = useState<UserRecord | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Modal / Inputs for coin modification
@@ -63,7 +65,7 @@ export default function AdminPage() {
 
       const currentUser = JSON.parse(currentUserStr);
       // Hardcoded admin email
-      if (currentUser.email !== "sen@senhost.com") {
+      if (currentUser.email !== "stephaneboyce@gmail.com") {
         setIsAdmin(false);
         setLoading(false);
         return;
@@ -85,7 +87,9 @@ export default function AdminPage() {
       const res = await fetch("/api/instances");
       if (res.ok) {
         const data = await res.json();
-        const activeBots = (data.instances || []).filter(
+        const instances = data.instances || [];
+        setAllInstances(instances);
+        const activeBots = instances.filter(
           (i: any) => i.status === "online"
         ).length;
         setActiveBotsCount(activeBots);
@@ -125,7 +129,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     const targetUser = users.find((u) => u.id === userId);
     if (!targetUser) return;
 
@@ -134,13 +138,31 @@ export default function AdminPage() {
       return;
     }
 
-    if (!confirm(`Are you sure you want to permanently delete user "${targetUser.name}"?`)) {
+    if (!confirm(`Are you sure you want to permanently delete user "${targetUser.name}" and ALL of their active bots?`)) {
       return;
+    }
+
+    try {
+      // Delete user's active instances
+      const res = await fetch(`/api/instances?ownerEmail=${encodeURIComponent(targetUser.email)}`, {
+        method: "DELETE"
+      });
+
+      if (!res.ok && res.status !== 207) {
+        const errorData = await res.json();
+        alert(`Warning: Failed to delete user instances: ${errorData.error || errorData.message}`);
+      }
+    } catch (err) {
+      console.error("Error deleting instances:", err);
+      alert("Failed to delete user instances, but proceeding with account deletion.");
     }
 
     const updatedUsers = users.filter((u) => u.id !== userId);
     setUsers(updatedUsers);
     localStorage.setItem("users", JSON.stringify(updatedUsers));
+
+    // Refresh metrics/instances
+    verifyAdminAndLoadData();
   };
 
   const handleUpdateCoins = (isAdd: boolean) => {
@@ -310,6 +332,7 @@ export default function AdminPage() {
                   <th className="py-3 px-4">Email</th>
                   <th className="py-3 px-4">Registered Date</th>
                   <th className="py-3 px-4">Coins</th>
+                  <th className="py-3 px-4">Bots</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
@@ -325,6 +348,24 @@ export default function AdminPage() {
                         <Coins className="h-3.5 w-3.5" />
                         {user.coins}
                       </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {(() => {
+                        const userInstances = allInstances.filter(
+                          (i) => i.config?.ownerEmail?.toLowerCase() === user.email.toLowerCase()
+                        );
+                        const activeCount = userInstances.filter((i) => i.status === "online").length;
+                        return (
+                          <button
+                            onClick={() => setViewingBotsUser(user)}
+                            className="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline"
+                            title="Click to view and manage bots"
+                          >
+                            <Activity className={cn("h-3 w-3", activeCount > 0 ? "text-emerald-400 animate-pulse" : "text-muted-foreground")} />
+                            {activeCount} / {userInstances.length}
+                          </button>
+                        );
+                      })()}
                     </td>
                     <td className="py-3.5 px-4">
                       <span
@@ -482,6 +523,129 @@ export default function AdminPage() {
                 <PlusCircle className="h-3.5 w-3.5" />
                 Add Coins
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Bots Modal */}
+      {viewingBotsUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl p-6 animate-fade-in-up">
+            <div className="flex items-center justify-between border-b border-border/50 pb-4 mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">
+                  Bots for {viewingBotsUser.name}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {viewingBotsUser.email}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewingBotsUser(null)}
+                className="rounded-lg"
+              >
+                Close
+              </Button>
+            </div>
+
+            <div className="overflow-y-auto max-h-[400px] space-y-4 pr-1">
+              {(() => {
+                const userInstances = allInstances.filter(
+                  (i) => i.config?.ownerEmail?.toLowerCase() === viewingBotsUser.email.toLowerCase()
+                );
+
+                if (userInstances.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      This user has no instances.
+                    </div>
+                  );
+                }
+
+                return (
+                  <table className="w-full text-left text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-border/80 text-muted-foreground font-semibold text-xs">
+                        <th className="py-2">Bot ID</th>
+                        <th className="py-2">Template</th>
+                        <th className="py-2">Status</th>
+                        <th className="py-2">Uptime</th>
+                        <th className="py-2 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {userInstances.map((inst) => (
+                        <tr key={inst.id} className="text-xs">
+                          <td className="py-3 font-mono font-medium max-w-[200px] truncate" title={inst.id}>
+                            {inst.id}
+                          </td>
+                          <td className="py-3 text-muted-foreground">
+                            {inst.templateId}
+                          </td>
+                          <td className="py-3">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                                inst.status === "online"
+                                  ? "bg-emerald-400/10 text-emerald-400"
+                                  : "bg-red-400/10 text-red-400"
+                              )}
+                            >
+                              {inst.status}
+                            </span>
+                          </td>
+                          <td className="py-3 text-muted-foreground font-mono">
+                            {inst.uptime}
+                          </td>
+                          <td className="py-3 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                if (
+                                  confirm(
+                                    `Are you sure you want to permanently delete bot "${inst.id}"? This stops the PM2 process and deletes all file contents.`
+                                  )
+                                ) {
+                                  try {
+                                    const res = await fetch(
+                                      `/api/instances?instanceId=${encodeURIComponent(
+                                        inst.id
+                                      )}`,
+                                      { method: "DELETE" }
+                                    );
+                                    if (res.ok) {
+                                      // Refresh data
+                                      verifyAdminAndLoadData();
+                                    } else {
+                                      const data = await res.json();
+                                      alert(
+                                        `Failed to delete bot: ${
+                                          data.error || data.message
+                                        }`
+                                      );
+                                    }
+                                  } catch (err) {
+                                    console.error(err);
+                                    alert("Error deleting bot.");
+                                  }
+                                }
+                              }}
+                              className="h-7 px-2 text-red-500 border-red-500/20 hover:bg-red-500/10 rounded-lg cursor-pointer"
+                              title="Delete Bot Instance"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
             </div>
           </div>
         </div>

@@ -105,3 +105,79 @@ export async function POST(request: Request) {
     );
   }
 }
+
+/**
+ * DELETE /api/instances?instanceId=xxx — Kill PM2 process + delete instance folder
+ * DELETE /api/instances?ownerEmail=xxx — Kill + delete ALL instances belonging to a user
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const instanceId = request.nextUrl.searchParams.get("instanceId");
+    const ownerEmail = request.nextUrl.searchParams.get("ownerEmail");
+
+    const { deleteBot } = await import("@/lib/pm2");
+    const { deleteInstance, listInstances } = await import("@/lib/instances");
+
+    // ── Bulk delete by owner email ──────────────────────────────────────────
+    if (ownerEmail) {
+      const all = listInstances();
+      const owned = all.filter(
+        (i) => i.config?.ownerEmail?.toLowerCase() === ownerEmail.toLowerCase()
+      );
+
+      const results: { id: string; success: boolean; error?: string }[] = [];
+
+      for (const instance of owned) {
+        // Kill in PM2
+        deleteBot(instance.id);
+        // Delete from disk
+        const del = deleteInstance(instance.id);
+        results.push({ id: instance.id, success: del.success, error: del.error });
+      }
+
+      const failed = results.filter((r) => !r.success);
+      if (failed.length > 0) {
+        return Response.json(
+          {
+            message: `Deleted ${results.length - failed.length}/${results.length} instances`,
+            failures: failed,
+          },
+          { status: 207 }
+        );
+      }
+
+      return Response.json({
+        message: `All ${results.length} instance(s) for "${ownerEmail}" deleted successfully`,
+        deleted: results.map((r) => r.id),
+      });
+    }
+
+    // ── Single instance delete ───────────────────────────────────────────────
+    if (!instanceId) {
+      return Response.json(
+        { error: "instanceId or ownerEmail is required" },
+        { status: 400 }
+      );
+    }
+
+    // 1. Kill and remove from PM2 (ignore errors if not registered)
+    deleteBot(instanceId);
+
+    // 2. Delete the instance directory from disk
+    const result = deleteInstance(instanceId);
+
+    if (!result.success) {
+      return Response.json(
+        { error: result.error || "Failed to delete instance directory" },
+        { status: 500 }
+      );
+    }
+
+    return Response.json({ message: `Instance "${instanceId}" deleted successfully` });
+  } catch (error: any) {
+    return Response.json(
+      { error: error.message || "Failed to delete instance" },
+      { status: 500 }
+    );
+  }
+}

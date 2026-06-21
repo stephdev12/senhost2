@@ -78,11 +78,16 @@ export function restartBot(instanceId: string): boolean {
 }
 
 /**
- * Delete a bot from PM2
+ * Delete a bot from PM2 (stop + delete to fully remove the process)
  */
 export function deleteBot(instanceId: string): boolean {
   try {
-    execSync(`npx pm2 delete "${instanceId}"`, { encoding: "utf-8" });
+    // Stop first (ignore error if already stopped)
+    try {
+      execSync(`npx pm2 stop "${instanceId}"`, { encoding: "utf-8", stdio: "pipe" });
+    } catch { /* already stopped — ignore */ }
+    // Remove from PM2 process list
+    execSync(`npx pm2 delete "${instanceId}"`, { encoding: "utf-8", stdio: "pipe" });
     return true;
   } catch (error) {
     console.error(`Failed to delete bot ${instanceId}:`, error);
